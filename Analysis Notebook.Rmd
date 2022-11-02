@@ -1,0 +1,52 @@
+---
+title: "Analysis Notebook"
+author: "Trevor Parma"
+date: '2022-11-02'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[motivate_inc]: https://www.motivateco.com/
+[cyclistic_data]: https://divvy-tripdata.s3.amazonaws.com/index.html
+[divvy_license]: https://ride.divvybikes.com/data-license-agreement
+
+# Business Task
+
+I will be analyzing Cyclistic historical trip data to answer the following question: How do annual members and casual riders use Cyclistic bikes differently? I will present my findings to the marketing analysis team and will work with them to design marketing strategies to convert casual riders into annual members. Our recommendations will be presented to the director of marketing Lily Moreno and the Cyclistic executive team.
+
+```{r Loading libraries, include=FALSE}
+library("tidyverse")
+library(data.table)
+```
+
+# Preparing the Data
+
+I will be using [Cyclistic trip data][cyclistic_data] made available by [Motivate International Inc.][motivate_inc] which is a bike share company in Chicago. I am using the data from October 2021 to September 2022. The license for this data can be found [here][divvy_license]. The data is provided with this repository, as according to section 2b of the [license][divvy_license] the data can be included as part of an analysis.
+
+Data-privacy prevents me from using riders' identifiable information. This will affect my analysis in the following ways:
+
+1. I won't be able to see if a casual rider lives in the Cyclistic service area, which could be a big difference between them and members.
+2. I won't be able to see if a casual rider has purchased multiple single passes and will not know the price a casual rider pays versus what a member pays.
+
+Other than that, I will be able to identify all of the differences between members and casual riders.
+
+The data is stored on my computer in this project and in a separate folder so I have a backup.
+
+# Processing the Data
+
+First, I import the data into R Studio. I have chosen to use R for this analysis because I am already very comfortable with programming and R is a powerful tool that I want to familiarize myself with.
+
+```{r Importing data, eval=FALSE}
+# import data
+file_names <- list.files(path = "Data/", pattern = ".csv", full.names = TRUE)
+`tripdata_10-21_09-22` <- do.call(rbind, lapply(file_names, read_csv))
+```
+
+Next, I calculated and added columns for the ride length and day of the week.
+
+```{r Ride length and weekday}
+
+```
