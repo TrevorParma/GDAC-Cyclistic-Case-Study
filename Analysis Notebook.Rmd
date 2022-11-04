@@ -19,12 +19,14 @@ I will be analyzing Cyclistic historical trip data to answer the following quest
 
 ```{r Loading libraries, include=FALSE}
 library("tidyverse")
+library(lubridate)
 library(data.table)
+library(ggplot2)
 ```
 
 # Preparing the Data
 
-I will be using [Cyclistic trip data][cyclistic_data] made available by [Motivate International Inc.][motivate_inc] which is a bike share company in Chicago. I am using the data from October 2021 to September 2022. The license for this data can be found [here][divvy_license]. The data is provided with this repository, as according to section 2b of the [license][divvy_license] the data can be included as part of an analysis.
+I will be using [Cyclistic trip data][cyclistic_data] made available by [Motivate International Inc.][motivate_inc] which is a bike share company in Chicago. I am using the data from October 2021 to September 2022. The license for this data can be found [here][divvy_license].
 
 Data-privacy prevents me from using riders' identifiable information. This will affect my analysis in the following ways:
 
@@ -39,14 +41,120 @@ The data is stored on my computer in this project and in a separate folder so I 
 
 First, I import the data into R Studio. I have chosen to use R for this analysis because I am already very comfortable with programming and R is a powerful tool that I want to familiarize myself with.
 
-```{r Importing data, eval=FALSE}
+```{r Importing data, message=FALSE}
 # import data
 file_names <- list.files(path = "Data/", pattern = ".csv", full.names = TRUE)
-`tripdata_10-21_09-22` <- do.call(rbind, lapply(file_names, read_csv))
+tripdata <- do.call(rbind, lapply(file_names, read_csv))
+glimpse(tripdata)
+
+# detach data.table (which I used to import all the data at once) because it causes problems later with lubridate.
+detach("package:data.table", unload = TRUE)
 ```
 
-Next, I calculated and added columns for the ride length and day of the week.
+I filter out the latitude and longitude columns because they are unnecessary in my analysis.
 
-```{r Ride length and weekday}
+```{r Filter out columns}
+# remove the unnecessary columns for latitude and longitude
+tripdata <- tripdata %>% 
+  select(-c(start_lat, start_lng, end_lat, end_lng))
+```
 
+Currently I can't aggregate the data well to find differences, so I add columns for the date and its parts, and a column for the weekday.
+
+```{r Adding data}
+# add columns for the date, month, day, year, and day of the week of each ride
+tripdata$date <- as.Date(tripdata$started_at)
+tripdata$month <- format(as.Date(tripdata$date), "%m")
+tripdata$day <- format(as.Date(tripdata$date), "%d")
+tripdata$year <- format(as.Date(tripdata$date), "%Y")
+tripdata$day_of_week <- format(as.Date(tripdata$date), "%A")
+
+# sort days of the week
+tripdata$day_of_week <- ordered(tripdata$day_of_week,
+                                  levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+I add a column for the ride length in seconds because it's an important difference between members and casual riders.
+
+```{r Adding ride length}
+# add a column for the ride length
+tripdata$ride_length <- difftime(tripdata$ended_at, tripdata$started_at)
+
+# change the type of the ride length column to numeric for calculations
+tripdata$ride_length <- as.numeric(as.character(tripdata$ride_length))
+str(tripdata)
+```
+
+I finalize the data by removing instances where the ride length is negative because that is an error in the data. I put this into a new dataframe because I am removing data.
+
+```{r Finalize ride_length}
+# ride length shouldn't be negative, so I make sure there aren't any instances of that
+tripdata_2 <- tripdata[!(tripdata$ride_length < 0),]
+```
+
+# Analyzing the data
+
+I create a descriptive analysis on the ride lengths, finding the mean, median, maximum, and minimum for the value.
+
+```{r Descriptive analysis}
+# descriptive analysis on ride_length
+mean(tripdata_2$ride_length)
+median(tripdata_2$ride_length)
+max(tripdata_2$ride_length)
+min(tripdata_2$ride_length)
+```
+
+I do the same analysis as above, but this time I look at how the length differs between members and casual riders.
+
+```{r Aggregated analysis}
+# compare members and casual riders
+aggregate(tripdata_2$ride_length ~ tripdata_2$member_casual, FUN = mean)
+aggregate(tripdata_2$ride_length ~ tripdata_2$member_casual, FUN = median)
+aggregate(tripdata_2$ride_length ~ tripdata_2$member_casual, FUN = max)
+aggregate(tripdata_2$ride_length ~ tripdata_2$member_casual, FUN = min)
+```
+
+You can immediately see that casual members are spending more time with the bikes rented out.   
+After this I found the average ride length of members and casual riders by the day of the week.
+
+```{r Day of the week average ride length}
+# average ride length by each day for members vs casual users
+aggregate(tripdata_2$ride_length ~ tripdata_2$member_casual + tripdata_2$day_of_week, FUN = mean)
+```
+
+I took this a step further and found ridership data by the rider type and weekday.
+
+```{r Ridership data by type and weekday}
+# analyze ridership data by type and weekday
+tripdata_2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)
+```
+
+I created a visual of the number of rides to compare members and casual riders.
+
+```{r Visualizing number of rides}
+# visualize the number of rides by rider type
+tripdata_2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+Finally, I created a visualization to see the average duration of rides between members and casual riders.
+
+```{r Visualizing average duration}
+# visualize average duration
+tripdata_2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
 ```
